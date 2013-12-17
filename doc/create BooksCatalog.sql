@@ -1,0 +1,7 @@
+CREATE USER 'BooksCatalog'@'localhost';
+
+GRANT USAGE ON * . * TO 'BooksCatalog'@'localhost' WITH MAX_QUERIES_PER_HOUR 0 MAX_CONNECTIONS_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 MAX_USER_CONNECTIONS 0 ;
+
+CREATE DATABASE IF NOT EXISTS `BooksCatalog` ;
+
+GRANT ALL PRIVILEGES ON `BooksCatalog` . * TO 'BooksCatalog'@'localhost';
