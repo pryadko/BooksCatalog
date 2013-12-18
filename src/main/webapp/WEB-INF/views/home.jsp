@@ -21,7 +21,7 @@
         <td>123</td>
     </tr>
 </table>
-<p>Ссылка на работающие приложения <a href="http://ec2-54-200-80-75.us-west-2.compute.amazonaws.com:8080/BooksCatalog/">Amazon cloud</a>.</p>
+<p>Ссылка на работающие приложения <a href="http://goo.gl/Q7ZrFU">Amazon cloud</a>.</p>
 <p>Ссылка на проект в <a href="https://github.com/pryadko/BooksCatalog.git">Github</a>.</p>
 <p>Архив с исходным кодом <a href="https://github.com/pryadko/BooksCatalog/archive/master.zip">тут</a>.</p>
 
