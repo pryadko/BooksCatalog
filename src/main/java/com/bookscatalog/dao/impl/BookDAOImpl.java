@@ -2,8 +2,9 @@ package com.bookscatalog.dao.impl;
 
 import java.util.List;
 
-import org.hibernate.Hibernate;
 import org.hibernate.SessionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -12,58 +13,61 @@ import com.bookscatalog.domain.Book;
 
 @Repository
 public class BookDAOImpl implements BookDAO {
+    private static final Logger logger = LoggerFactory.getLogger(BookDAOImpl.class);
+
     @Autowired
     private SessionFactory sessionFactory;
 
+    @Override
     public void save(Book book) {
+        logger.debug("Saving book: {}", book);
         sessionFactory.getCurrentSession().persist(book);
     }
 
-    private List<Book> bookInitAuthor(List<Book> books) {
-        for (Book book : books)
-            Hibernate.initialize(book.getAuthors());
-        return books;
-    }
-
+    @Override
     public void update(Book book) {
+        logger.debug("Updating book: {}", book);
         sessionFactory.getCurrentSession().merge(book);
     }
 
-    @SuppressWarnings("unchecked")
-    public List<Book> getAllBooks() {
-        return bookInitAuthor(sessionFactory.getCurrentSession().createQuery("from Book", Book.class).list());
-    }
-
+    @Override
     public void delete(Book book) {
+        logger.debug("Deleting book: {}", book);
         sessionFactory.getCurrentSession().remove(book);
     }
 
+    @Override
+    public List<Book> getAllBooks() {
+        logger.debug("Getting all books");
+        return sessionFactory.getCurrentSession()
+                .createQuery("FROM Book b LEFT JOIN FETCH b.authors", Book.class)
+                .getResultList();
+    }
+
+    @Override
     public Book findBookById(int id) {
-        Book result = sessionFactory.getCurrentSession()
-            .createQuery("from Book where id = :id", Book.class)
-            .setParameter("id", id)
-            .uniqueResult();
-        Hibernate.initialize(result.getAuthors());
-        return result;
+        logger.debug("Finding book by id: {}", id);
+        return sessionFactory.getCurrentSession()
+                .createQuery("FROM Book b LEFT JOIN FETCH b.authors WHERE b.id = :id", Book.class)
+                .setParameter("id", id)
+                .uniqueResult();
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
     public List<Book> findBooksByName(String name) {
-        return bookInitAuthor(
-            sessionFactory.getCurrentSession()
-                .createQuery("from Book where name like :name", Book.class)
+        logger.debug("Finding books by name containing: {}", name);
+        return sessionFactory.getCurrentSession()
+                .createQuery("FROM Book b LEFT JOIN FETCH b.authors WHERE LOWER(b.name) LIKE LOWER(:name)", Book.class)
                 .setParameter("name", "%" + name + "%")
-                .list()
-        );
+                .getResultList();
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
     public List<Book> getBooksByAuthor(int authorId) {
-        return bookInitAuthor(
-            sessionFactory.getCurrentSession()
-                .createQuery("select b from Book b INNER JOIN b.authors author where author.id = :authorId", Book.class)
+        logger.debug("Finding books by author id: {}", authorId);
+        return sessionFactory.getCurrentSession()
+                .createQuery("SELECT DISTINCT b FROM Book b LEFT JOIN FETCH b.authors a WHERE a.id = :authorId", Book.class)
                 .setParameter("authorId", authorId)
-                .list()
-        );
+                .getResultList();
     }
 }

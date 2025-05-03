@@ -2,9 +2,10 @@ package com.bookscatalog.dao.impl;
 
 import java.util.List;
 
-import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -13,49 +14,52 @@ import com.bookscatalog.domain.Author;
 
 @Repository
 public class AuthorDAOImpl implements AuthorDAO {
+    private static final Logger logger = LoggerFactory.getLogger(AuthorDAOImpl.class);
+    
     @Autowired
     private SessionFactory sessionFactory;
 
+    @Override
     public void save(Author author) {
+        logger.debug("Saving author: {}", author);
         sessionFactory.getCurrentSession().persist(author);
     }
 
+    @Override
     public void update(Author author) {
+        logger.debug("Updating author: {}", author);
         sessionFactory.getCurrentSession().merge(author);
     }
 
-    private List<Author> authorInitBooks(List<Author> authors) {
-        for (Author author : authors)
-            Hibernate.initialize(author.getBooks());
-        return authors;
-    }
-
+    @Override
     public void delete(Author author) {
+        logger.debug("Deleting author: {}", author);
         Session session = sessionFactory.getCurrentSession();
-        session.createNativeMutationQuery("delete from AuthorToBook where authorId = :id")
-            .setParameter("id", author.getId())
-            .executeUpdate();
-        session.createNativeMutationQuery("delete from Author where id = :id")
-            .setParameter("id", author.getId())
-            .executeUpdate();
-        session.clear();
+        
+        // First remove author from all books (many-to-many relationship)
+        session.createNativeMutationQuery("DELETE FROM AuthorToBook WHERE authorId = :id")
+               .setParameter("id", author.getId())
+               .executeUpdate();
+        
+        // Then delete the author
+        session.remove(author);
+        session.flush();
     }
 
+    @Override
     public Author findAuthorById(int id) {
-        Author result = sessionFactory.getCurrentSession()
-            .createQuery("from Author where id = :id", Author.class)
-            .setParameter("id", id)
-            .uniqueResult();
-        Hibernate.initialize(result.getBooks());
-        return result;
+        logger.debug("Finding author by id: {}", id);
+        return sessionFactory.getCurrentSession()
+                .createQuery("FROM Author a LEFT JOIN FETCH a.books WHERE a.id = :id", Author.class)
+                .setParameter("id", id)
+                .uniqueResult();
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
     public List<Author> getAllAuthors() {
-        return authorInitBooks(
-            sessionFactory.getCurrentSession()
-                .createQuery("from Author", Author.class)
-                .list()
-        );
+        logger.debug("Getting all authors");
+        return sessionFactory.getCurrentSession()
+                .createQuery("FROM Author a LEFT JOIN FETCH a.books", Author.class)
+                .getResultList();
     }
 }
