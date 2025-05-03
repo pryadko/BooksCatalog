@@ -1,49 +1,61 @@
 package com.bookscatalog.dao.impl;
 
-import com.bookscatalog.dao.AuthorDAO;
-import com.bookscatalog.domain.Author;
-import org.hibernate.*;
+import java.util.List;
+
+import org.hibernate.Hibernate;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import com.bookscatalog.dao.AuthorDAO;
+import com.bookscatalog.domain.Author;
 
-@Repository()
+@Repository
 public class AuthorDAOImpl implements AuthorDAO {
-    static private final String SQL_DELETE_NULL_BOOK = "DELETE Book FROM Book left outer join  AuthorToBook on Book.id=AuthorToBook.bookId  where AuthorToBook.authorId is null";
-    static private final String SQL_DELETE_AUTHOR_TO_BOOK = "DELETE FROM AuthorToBook WHERE AuthorToBook.authorId = ?";
-    static private final String SQL_DELETE_AUTHOR = "DELETE FROM Author WHERE Author.id=?";
-
     @Autowired
     private SessionFactory sessionFactory;
 
     public void save(Author author) {
-        sessionFactory.getCurrentSession().saveOrUpdate(author);
+        sessionFactory.getCurrentSession().persist(author);
     }
 
     public void update(Author author) {
-        sessionFactory.getCurrentSession().saveOrUpdate(author);
+        sessionFactory.getCurrentSession().merge(author);
     }
 
-    @SuppressWarnings("unchecked")
-    public List<Author> getAllAuthors() {
-        return (List<Author>) sessionFactory.getCurrentSession().createQuery("from Author").list();
+    private List<Author> authorInitBooks(List<Author> authors) {
+        for (Author author : authors)
+            Hibernate.initialize(author.getBooks());
+        return authors;
     }
 
     public void delete(Author author) {
-        int authorId = author.getId();
-        sessionFactory.getCurrentSession().createSQLQuery(SQL_DELETE_AUTHOR_TO_BOOK).setParameter(0, authorId).executeUpdate();
-        sessionFactory.getCurrentSession().createSQLQuery(SQL_DELETE_AUTHOR).setParameter(0, authorId).executeUpdate();
-        sessionFactory.getCurrentSession().createSQLQuery(SQL_DELETE_NULL_BOOK).executeUpdate();
+        Session session = sessionFactory.getCurrentSession();
+        session.createNativeMutationQuery("delete from AuthorToBook where authorId = :id")
+            .setParameter("id", author.getId())
+            .executeUpdate();
+        session.createNativeMutationQuery("delete from Author where id = :id")
+            .setParameter("id", author.getId())
+            .executeUpdate();
+        session.clear();
     }
-    @SuppressWarnings("unchecked")
+
     public Author findAuthorById(int id) {
-        Author result;
-        Query q = sessionFactory.getCurrentSession().createQuery("from Author where id = :id");
-        q.setInteger("id", id);
-        result = ((Author) q.uniqueResult());
+        Author result = sessionFactory.getCurrentSession()
+            .createQuery("from Author where id = :id", Author.class)
+            .setParameter("id", id)
+            .uniqueResult();
         Hibernate.initialize(result.getBooks());
         return result;
     }
 
+    @SuppressWarnings("unchecked")
+    public List<Author> getAllAuthors() {
+        return authorInitBooks(
+            sessionFactory.getCurrentSession()
+                .createQuery("from Author", Author.class)
+                .list()
+        );
+    }
 }

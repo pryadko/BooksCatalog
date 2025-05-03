@@ -1,22 +1,22 @@
 package com.bookscatalog.dao.impl;
 
-import com.bookscatalog.dao.BookDAO;
-import com.bookscatalog.domain.Book;
+import java.util.List;
+
 import org.hibernate.Hibernate;
-import org.hibernate.Query;
 import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import com.bookscatalog.dao.BookDAO;
+import com.bookscatalog.domain.Book;
 
-@Repository()
+@Repository
 public class BookDAOImpl implements BookDAO {
     @Autowired
     private SessionFactory sessionFactory;
 
     public void save(Book book) {
-        sessionFactory.getCurrentSession().saveOrUpdate(book);
+        sessionFactory.getCurrentSession().persist(book);
     }
 
     private List<Book> bookInitAuthor(List<Book> books) {
@@ -26,38 +26,44 @@ public class BookDAOImpl implements BookDAO {
     }
 
     public void update(Book book) {
-        sessionFactory.getCurrentSession().saveOrUpdate(book);
+        sessionFactory.getCurrentSession().merge(book);
     }
 
     @SuppressWarnings("unchecked")
     public List<Book> getAllBooks() {
-        return bookInitAuthor((List<Book>) sessionFactory.getCurrentSession().createQuery("from Book").list());
+        return bookInitAuthor(sessionFactory.getCurrentSession().createQuery("from Book", Book.class).list());
     }
 
     public void delete(Book book) {
-        sessionFactory.getCurrentSession().delete(book);
+        sessionFactory.getCurrentSession().remove(book);
     }
 
     public Book findBookById(int id) {
-        Book result;
-        Query q = sessionFactory.getCurrentSession().createQuery("from Book where id = :id");
-        q.setInteger("id", id);
-        result = (Book) q.uniqueResult();
+        Book result = sessionFactory.getCurrentSession()
+            .createQuery("from Book where id = :id", Book.class)
+            .setParameter("id", id)
+            .uniqueResult();
         Hibernate.initialize(result.getAuthors());
         return result;
     }
+
     @SuppressWarnings("unchecked")
     public List<Book> findBooksByName(String name) {
-        Query q = sessionFactory.getCurrentSession().createQuery("from Book where name like :name");
-        q.setString("name", "%" + name + "%");
-        return bookInitAuthor((List<Book>) q.list());
-    }
-    @SuppressWarnings("unchecked")
-    public List<Book> getBooksByAuthor(int authorId) {
-        Query q = sessionFactory.getCurrentSession().createQuery(
-                "select b from Book b INNER JOIN b.authors author where author.id =:authorId");
-        q.setInteger("authorId", authorId);
-        return bookInitAuthor((List<Book>) q.list());
+        return bookInitAuthor(
+            sessionFactory.getCurrentSession()
+                .createQuery("from Book where name like :name", Book.class)
+                .setParameter("name", "%" + name + "%")
+                .list()
+        );
     }
 
+    @SuppressWarnings("unchecked")
+    public List<Book> getBooksByAuthor(int authorId) {
+        return bookInitAuthor(
+            sessionFactory.getCurrentSession()
+                .createQuery("select b from Book b INNER JOIN b.authors author where author.id = :authorId", Book.class)
+                .setParameter("authorId", authorId)
+                .list()
+        );
+    }
 }
